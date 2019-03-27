@@ -600,6 +600,32 @@ struct
     | TNamed ({ttype=t}, _) -> bot_value a gs st t
     | _ -> `Bot
 
+  let rec bot_value_global a (gs:glob_fun) (st: store) (t: typ): value =
+    let rec bot_comp compinfo: ValueDomain.Structs.t =
+      let nstruct = ValueDomain.Structs.top () in
+      let bot_field nstruct fd = ValueDomain.Structs.replace nstruct fd (bot_value_global a gs st fd.ftype) in
+      List.fold_left bot_field nstruct compinfo.cfields
+    in
+    match t with
+    | TInt _ -> `Bot (*`Int (ID.bot ()) -- should be lower than any int or address*)
+    | TPtr _ -> `Address (AD.bot ())
+    | TComp ({cstruct=true} as ci,_) -> `Struct (bot_comp ci)
+    | TComp ({cstruct=false},_) -> `Union (ValueDomain.Unions.bot ())
+    | TArray (_, None, _) -> `Array (ValueDomain.CArrays.bot ())
+    | TArray (ai, Some exp, _) -> begin
+        let default = `Array (ValueDomain.CArrays.bot ()) in
+        match eval_rv a gs st exp with
+        | `Int n -> begin
+            match ID.to_int n with
+            | Some n -> `Array (ValueDomain.CArrays.make_global (Int64.to_int n) (bot_value_global a gs st ai))
+            | _ -> default
+          end
+        | _ -> default
+      end
+    | TNamed ({ttype=t}, _) -> bot_value_global a gs st t
+    | _ -> `Bot
+
+
   let rec init_value a (gs:glob_fun) (st: store) (t: typ): value = (* TODO why is VD.top_value not used here? *)
     let rec init_comp compinfo: ValueDomain.Structs.t =
       let nstruct = ValueDomain.Structs.top () in
@@ -874,7 +900,30 @@ struct
           List.iter (fun x -> ctx.spawn x (threadstate x)) funs
         | _ -> ()
       end;
-      set_savetop ctx.ask ctx.global ctx.local lval_val rval_val
+      match lval with (* this section ensure global variables contain bottom values of the proper type before setting them  *)
+      | (Var v, _) when AD.is_definite lval_val && v.vglob ->  
+        begin
+        let current_val = eval_rv ctx.ask ctx.global ctx.local (Lval (Var v, NoOffset))
+        in
+        match current_val with
+        | `Bot -> (* current value is VD `Bot *)
+          begin
+            match Addr.to_var_offset (AD.choose lval_val) with
+            | [(x,offs)] -> 
+              begin
+                let iv = bot_value_global ctx.ask ctx.global ctx.local v.vtype in (* correct bottom value for top level variable *)
+                let nv = VD.update_offset iv offs rval_val in (* do desired update to value *)
+                set_savetop ctx.ask ctx.global ctx.local (AD.from_var v) nv (* set top-level variable to updated value *)
+              end
+            | _ ->  
+              set_savetop ctx.ask ctx.global ctx.local lval_val rval_val
+          end
+        | _ ->
+          set_savetop ctx.ask ctx.global ctx.local lval_val rval_val
+        end
+      | _ ->
+        set_savetop ctx.ask ctx.global ctx.local lval_val rval_val
+
 
   module Locmap = Deadcode.Locmap
 
