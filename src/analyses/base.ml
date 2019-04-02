@@ -617,7 +617,7 @@ struct
         match eval_rv a gs st exp with
         | `Int n -> begin
             match ID.to_int n with
-            | Some n -> `Array (ValueDomain.CArrays.make_global (Int64.to_int n) (bot_value_global a gs st ai))
+            | Some n -> `Array (ValueDomain.CArrays.make_arg_ok (Int64.to_int n) (bot_value_global a gs st ai))
             | _ -> default
           end
         | _ -> default
@@ -660,7 +660,7 @@ struct
          (match eval_rv a gs st exp with
           | `Int n -> begin
               match ID.to_int n with
-              | Some n -> `Array (ValueDomain.CArrays.make (Int64.to_int n) (bot_value a gs st ai))
+              | Some n -> `Array (ValueDomain.CArrays.make_arg_ok (Int64.to_int n) (top_value a gs st ai))
               | _ -> default
             end
           | _ -> default)

@@ -13,7 +13,7 @@ sig
   val get: t -> idx -> value
   val set: t -> idx -> value -> t
   val make: int -> value -> t
-  val make_global: int -> value -> t
+  val make_arg_ok: int -> value -> t
   val length: t -> int option
 end
 
@@ -32,7 +32,7 @@ struct
   let get a i = a
   let set a i v = join a v
   let make i v = Val.top()
-  let make_global i v = v
+  let make_arg_ok i v = v
   let length _ = None
 
   let set_inplace = set
@@ -61,7 +61,7 @@ struct
   let get (x,l) i = Base.get x i (* TODO check if in-bounds *)
   let set (x,l) i v = Base.set x i v, l
   let make l x = Base.make l x, Idx.of_int (Int64.of_int l)
-  let make_global l x = Base.make_global l x, Idx.of_int (Int64.of_int l)
+  let make_arg_ok l x = Base.make_arg_ok l x, Idx.of_int (Int64.of_int l)
   let length (_,l) = BatOption.map Int64.to_int (Idx.to_int l)
 end
 
@@ -198,7 +198,7 @@ struct
   let make i v =
     A.make i v
 
-  let make_global = make
+  let make_arg_ok = make
 
   let length a =
     Some (A.length a)

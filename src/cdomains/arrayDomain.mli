@@ -15,7 +15,7 @@ sig
   val make: int -> value -> t
   (** [make l e] creates an abstract representation of an array of length [l]
     * containing the element [e]. *)
-  val make_global: int -> value -> t
+  val make_arg_ok: int -> value -> t
   val length: t -> int option
   (** returns length of array if known *)
 end
